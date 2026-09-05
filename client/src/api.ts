@@ -1,0 +1,105 @@
+import type {
+  ChatTurn,
+  CompanyProfile,
+  CompareResponse,
+  DigestResponse,
+  HistoryResponse,
+  RemovedItem,
+  SymbolInfo,
+  User,
+  Watchlist,
+  WatchlistItem,
+} from "./types";
+
+const BASE = "/api";
+const STORAGE_KEY = "smart-watchlist-user";
+
+export function getStoredUser(): User | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setStoredUser(user: User) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
+
+export function clearStoredUser() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const user = getStoredUser();
+  const res = await fetch(`${BASE}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(user ? { "X-User-Id": user.id } : {}),
+    },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `Request failed: ${res.status}`);
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+
+export const api = {
+  login: async (name: string): Promise<User> => {
+    const user = await request<User>("/users", { method: "POST", body: JSON.stringify({ name }) });
+    setStoredUser(user);
+    return user;
+  },
+  validateStoredUser: (id: string) => request<User>(`/users/${id}`),
+
+  getWatchlists: () => request<Watchlist[]>("/watchlists"),
+  createWatchlist: (name: string) =>
+    request<Watchlist>("/watchlists", { method: "POST", body: JSON.stringify({ name }) }),
+  renameWatchlist: (id: number, name: string) =>
+    request<Watchlist>(`/watchlists/${id}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  deleteWatchlist: (id: number) => request<void>(`/watchlists/${id}`, { method: "DELETE" }),
+
+  getItems: (watchlistId: number) => request<WatchlistItem[]>(`/watchlists/${watchlistId}/items`),
+  addItem: (watchlistId: number, symbol: string, intent: string) =>
+    request<WatchlistItem>(`/watchlists/${watchlistId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ symbol, intent }),
+    }),
+  updateItemIntent: (watchlistId: number, itemId: number, intent: string) =>
+    request<WatchlistItem>(`/watchlists/${watchlistId}/items/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ intent }),
+    }),
+  removeItem: (watchlistId: number, itemId: number) =>
+    request<void>(`/watchlists/${watchlistId}/items/${itemId}`, { method: "DELETE" }),
+  removeItemBySymbol: (watchlistId: number, symbol: string) =>
+    request<void>(`/watchlists/${watchlistId}/items/by-symbol/${encodeURIComponent(symbol)}`, {
+      method: "DELETE",
+    }),
+
+  getDigest: (watchlistId: number) => request<DigestResponse>(`/watchlists/${watchlistId}/digest`),
+  getCompare: (watchlistId: number) => request<CompareResponse>(`/watchlists/${watchlistId}/compare`),
+  checkpoint: (watchlistId: number, symbol?: string) =>
+    request<{ checkpointed: string[] }>(`/watchlists/${watchlistId}/checkpoint`, {
+      method: "POST",
+      body: JSON.stringify(symbol ? { symbol } : {}),
+    }),
+
+  searchSymbols: (q: string) =>
+    request<SymbolInfo[]>(`/market/symbols?q=${encodeURIComponent(q)}`),
+  getHistory: (symbol: string, days = 30) =>
+    request<HistoryResponse>(`/market/history/${encodeURIComponent(symbol)}?days=${days}`),
+  getProfile: (symbol: string) =>
+    request<CompanyProfile>(`/market/profile/${encodeURIComponent(symbol)}`),
+  chatStatus: () => request<{ configured: boolean }>(`/chat/status`),
+  getRemovedItems: () => request<RemovedItem[]>(`/removed`),
+  sendChatMessage: (history: ChatTurn[]) =>
+    request<{ reply: string }>(`/chat/message`, {
+      method: "POST",
+      body: JSON.stringify({ history }),
+    }),
+};
