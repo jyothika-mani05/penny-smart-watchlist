@@ -5,8 +5,10 @@ import type {
   DigestResponse,
   HistoryResponse,
   RemovedItem,
+  Sensitivity,
   SymbolInfo,
   User,
+  UserSettings,
   Watchlist,
   WatchlistItem,
 } from "./types";
@@ -55,6 +57,12 @@ export const api = {
     return user;
   },
   validateStoredUser: (id: string) => request<User>(`/users/${id}`),
+  getSettings: (userId: string) => request<UserSettings>(`/users/${userId}/settings`),
+  updateSettings: (userId: string, sensitivity: Sensitivity) =>
+    request<UserSettings>(`/users/${userId}/settings`, {
+      method: "PATCH",
+      body: JSON.stringify({ sensitivity }),
+    }),
 
   getWatchlists: () => request<Watchlist[]>("/watchlists"),
   createWatchlist: (name: string) =>
@@ -97,9 +105,9 @@ export const api = {
     request<CompanyProfile>(`/market/profile/${encodeURIComponent(symbol)}`),
   chatStatus: () => request<{ configured: boolean }>(`/chat/status`),
   getRemovedItems: () => request<RemovedItem[]>(`/removed`),
-  sendChatMessage: (history: ChatTurn[]) =>
+  sendChatMessage: (history: ChatTurn[], watchlistId?: number | null) =>
     request<{ reply: string }>(`/chat/message`, {
       method: "POST",
-      body: JSON.stringify({ history }),
+      body: JSON.stringify({ history, watchlistId }),
     }),
 };

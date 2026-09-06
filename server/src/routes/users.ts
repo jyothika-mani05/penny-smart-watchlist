@@ -1,6 +1,7 @@
 import { Router } from "express";
 import type { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
+import { getUserSensitivity, isValidSensitivity } from "../lib/stats.js";
 
 interface UserRow {
   id: string;
@@ -41,6 +42,32 @@ export function usersRouter(db: DatabaseSync): Router {
       | undefined;
     if (!user) return res.status(404).json({ error: "not found" });
     res.json(user);
+  });
+
+  // Settings are self-only — same non-security identity model as everything
+  // else here (no password), just checked against the header instead of a
+  // shared requireAuth so an unrelated visitor can't read or change your
+  // digest sensitivity by guessing your user id.
+  router.get("/:id/settings", (req, res) => {
+    if (req.header("x-user-id") !== req.params.id) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    res.json({ sensitivity: getUserSensitivity(db, req.params.id) });
+  });
+
+  router.patch("/:id/settings", (req, res) => {
+    if (req.header("x-user-id") !== req.params.id) {
+      return res.status(403).json({ error: "forbidden" });
+    }
+    const sensitivity = req.body?.sensitivity;
+    if (!isValidSensitivity(sensitivity)) {
+      return res.status(400).json({ error: "sensitivity must be one of sensitive, balanced, relaxed" });
+    }
+    db.prepare(
+      `INSERT INTO user_settings (user_id, sensitivity) VALUES (?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET sensitivity = excluded.sensitivity`
+    ).run(req.params.id, sensitivity);
+    res.json({ sensitivity });
   });
 
   return router;

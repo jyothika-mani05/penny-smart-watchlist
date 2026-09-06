@@ -39,7 +39,15 @@ Hard rules:
   themselves. Keep this to one short sentence — don't repeat it if it's not the
   question actually being asked.
 - Never claim certainty about future prices or market direction.
-- Keep answers short — 3-5 sentences unless the user asks for more detail.`;
+- Keep answers short — 3-5 sentences unless the user asks for more detail.
+
+You may be given a "Current watchlist context" block below your instructions,
+listing the user's actually tracked stocks and how they've moved. Treat it like
+any other fact you're asked about: if the user asks "how's my portfolio doing"
+or "what's flagged right now", answer plainly using that real data. It is
+context for factual questions, not license to add unsolicited opinions — the
+same buy/sell/hold refusal rule above still applies even when a stock is in
+this context.`;
 
 let client: GoogleGenAI | null = null;
 
@@ -54,7 +62,7 @@ export function isChatbotConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-export async function askChatbot(history: ChatTurn[]): Promise<string> {
+export async function askChatbot(history: ChatTurn[], context?: string): Promise<string> {
   const ai = getClient();
   if (!ai) {
     throw new Error("Chatbot is not configured: set GEMINI_API_KEY in server/.env");
@@ -65,11 +73,40 @@ export async function askChatbot(history: ChatTurn[]): Promise<string> {
     parts: [{ text: turn.text }],
   }));
 
+  const systemInstruction = context
+    ? `${SYSTEM_INSTRUCTION}\n\nCurrent watchlist context:\n${context}`
+    : SYSTEM_INSTRUCTION;
+
   const response = await ai.models.generateContent({
     model: MODEL,
     contents,
-    config: { systemInstruction: SYSTEM_INSTRUCTION },
+    config: { systemInstruction },
   });
 
   return response.text ?? "Sorry, I couldn't come up with a reply to that.";
+}
+
+interface ChatContextItem {
+  symbol: string;
+  name: string;
+  price: number;
+  sinceCheckedChangePct: number;
+  materiality: string;
+  intent: string;
+}
+
+/** Renders the user's real digest into a compact block the model can cite
+ *  factually — never phrased as a recommendation itself, just the numbers. */
+export function buildChatContext(
+  items: ChatContextItem[],
+  narrativeSummary: string
+): string {
+  if (items.length === 0) {
+    return "The user's watchlist is currently empty — they haven't added any stocks yet.";
+  }
+  const lines = items.map((i) => {
+    const pct = `${i.sinceCheckedChangePct >= 0 ? "+" : ""}${i.sinceCheckedChangePct.toFixed(2)}%`;
+    return `- ${i.name} (${i.symbol.replace(".NS", "")}): ₹${i.price.toFixed(2)}, ${pct} since last checked, flagged "${i.materiality}", tracked as "${i.intent}"`;
+  });
+  return `${narrativeSummary}\n${lines.join("\n")}`;
 }

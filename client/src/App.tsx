@@ -3,6 +3,7 @@ import { api, clearStoredUser, getStoredUser } from "./api";
 import type { User } from "./types";
 import { Landing } from "./components/Landing";
 import { LoginGate } from "./components/LoginGate";
+import { LoginWelcome } from "./components/LoginWelcome";
 import { Dashboard } from "./components/Dashboard";
 import { PennyGazeProvider } from "./PennyGaze";
 
@@ -10,6 +11,7 @@ type AuthState =
   | { status: "checking" }
   | { status: "landing" }
   | { status: "anonymous" }
+  | { status: "welcome"; user: User }
   | { status: "authenticated"; user: User };
 
 export default function App() {
@@ -41,7 +43,14 @@ export default function App() {
       )}
 
       {auth.status === "anonymous" && (
-        <LoginGate onLogin={(user) => setAuth({ status: "authenticated", user })} />
+        <LoginGate onLogin={(user) => setAuth({ status: "welcome", user })} />
+      )}
+
+      {auth.status === "welcome" && (
+        <LoginWelcome
+          name={auth.user.name}
+          onDone={() => setAuth({ status: "authenticated", user: auth.user })}
+        />
       )}
 
       {auth.status === "authenticated" && (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, HandWaving, Lightning } from "@phosphor-icons/react";
 import type { DigestResponse, ItemInsight } from "../types";
 import { INTENT_LABELS } from "../types";
 import { Sparkline } from "./Sparkline";
@@ -54,7 +55,9 @@ function ItemCard({
 
         {item.materiality !== "quiet" && (
           <div className="item-card-flag">
-            <span className="item-card-flag-icon">⚡</span>
+            <span className="item-card-flag-icon" aria-hidden="true">
+              <Lightning size={14} weight="fill" />
+            </span>
             <p className="reason">{item.reason}</p>
           </div>
         )}
@@ -125,7 +128,10 @@ export function DigestView({
     <div>
       <div className="digest-greeting">
         <h1>
-          {greeting()} <span className="digest-wave">👋</span>
+          {greeting()}{" "}
+          <span className="digest-wave">
+            <HandWaving size={24} weight="regular" />
+          </span>
         </h1>
         <p className="tagline">Here's what changed since you last checked.</p>
       </div>
@@ -133,7 +139,9 @@ export function DigestView({
       <div className="digest-noticed">
         {hasFlags ? (
           <>
-            <span className="digest-noticed-eyes">Penny noticed something 👀</span>
+            <span className="digest-noticed-eyes">
+              Penny noticed something <Eye size={15} weight="regular" />
+            </span>
             <span className="digest-noticed-count">
               {flagged.length} unusual move{flagged.length === 1 ? "" : "s"}
             </span>

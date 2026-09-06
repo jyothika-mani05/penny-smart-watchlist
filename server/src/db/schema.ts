@@ -72,6 +72,11 @@ export function openDb(): DatabaseSync {
       removed_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS user_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      sensitivity TEXT NOT NULL DEFAULT 'balanced'
+    );
+
     CREATE TABLE IF NOT EXISTS company_profiles (
       symbol TEXT PRIMARY KEY,
       website TEXT,

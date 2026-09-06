@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { api } from "../api";
 import type { HistoryResponse, SymbolInfo } from "../types";
 import { INTENT_LABELS } from "../types";
@@ -100,21 +101,33 @@ export function AddStockDialog({
     }
   }
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className={`modal ${selected ? "modal-wide" : ""}`} onClick={(e) => e.stopPropagation()}>
+      <div
+        className={`modal ${selected ? "modal-wide" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add a stock"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3>Add a stock</h3>
         {!selected && <p className="modal-subtitle">Search real NSE-listed companies</p>}
 
         {!selected ? (
           <>
             <div className="search-field">
-              <svg className="search-icon" viewBox="0 0 20 20" fill="none">
-                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.6" />
-                <line x1="14" y1="14" x2="18" y2="18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
+              <MagnifyingGlass className="search-icon" size={16} weight="regular" aria-hidden="true" />
               <input
                 autoFocus
+                aria-label="Search by name or symbol"
                 placeholder="Search by name or symbol..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}

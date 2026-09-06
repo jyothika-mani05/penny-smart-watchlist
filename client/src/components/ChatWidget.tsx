@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import { HandWaving, X } from "@phosphor-icons/react";
 import { api } from "../api";
 import type { ChatTurn } from "../types";
 import { RobotIcon, type RobotState } from "./RobotIcon";
 
 const IDLE_MS = 30_000;
 
-export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
+export function ChatWidget({
+  hasAlert = false,
+  watchlistId = null,
+}: {
+  hasAlert?: boolean;
+  watchlistId?: number | null;
+}) {
   const [open, setOpen] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [history, setHistory] = useState<ChatTurn[]>([]);
@@ -36,6 +43,15 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [history, busy]);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   function poke() {
     lastActivity.current = Date.now();
   }
@@ -64,7 +80,7 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
     setInput("");
     setBusy(true);
     try {
-      const { reply } = await api.sendChatMessage(next);
+      const { reply } = await api.sendChatMessage(next, watchlistId);
       setHistory([...next, { role: "model" as const, text: reply }]);
     } catch (err) {
       setHistory([...next, { role: "model" as const, text: `Error: ${(err as Error).message}` }]);
@@ -77,7 +93,7 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
   return (
     <div className="chat-widget">
       {open && (
-        <div className="chat-panel">
+        <div className="chat-panel" role="dialog" aria-label="Chat with Penny">
           <div className="chat-panel-header">
             <div className="chat-panel-title">
               <RobotIcon state={botState} size={40} />
@@ -92,8 +108,9 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
                 poke();
                 setOpen(false);
               }}
+              aria-label="Close chat"
             >
-              ×
+              <X size={18} weight="bold" aria-hidden="true" />
             </button>
           </div>
 
@@ -160,7 +177,11 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
         </div>
       )}
 
-      {greeting && !open && <div className="chat-greeting-bubble">Hi, I'm Penny! 👋</div>}
+      {greeting && !open && (
+        <div className="chat-greeting-bubble">
+          Hi, I'm Penny! <HandWaving size={15} weight="regular" />
+        </div>
+      )}
 
       <button
         className={`chat-fab ${fabState === "sleeping" ? "chat-fab-sleeping" : ""}`}
@@ -169,8 +190,16 @@ export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
           setOpen((o) => !o);
         }}
         title={hasAlert && !open ? "Penny — something in your watchlist needs a look" : "Penny — stock market help"}
+        aria-label={open ? "Close chat" : "Open chat with Penny"}
+        aria-expanded={open}
       >
-        {open ? <span className="chat-fab-close">×</span> : <RobotIcon state={fabState} size={64} />}
+        {open ? (
+          <span className="chat-fab-close" aria-hidden="true">
+            <X size={26} weight="bold" />
+          </span>
+        ) : (
+          <RobotIcon state={fabState} size={64} />
+        )}
       </button>
     </div>
   );

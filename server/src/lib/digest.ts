@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { classify, getSigma, pctChange, zScore, type Materiality } from "./stats.js";
+import { classify, getSigma, pctChange, zScore, type Materiality, type Sensitivity } from "./stats.js";
 import { MARKET_INDEX, peersOf, SYMBOL_MAP } from "./symbols.js";
 import { buildMoveExplanation } from "./explain.js";
 
@@ -90,7 +90,8 @@ function buildReason(opts: {
 export function buildItemInsight(
   db: DatabaseSync,
   item: { symbol: string; display_name: string | null; intent: string },
-  userId: string
+  userId: string,
+  sensitivity: Sensitivity = "balanced"
 ): ItemInsight | null {
   const live = getLivePrice(db, item.symbol);
   const baseline = db
@@ -102,7 +103,7 @@ export function buildItemInsight(
   const todayChangePct = pctChange(live.prev_close, live.price);
   const sinceCheckedChangePct = pctChange(baseline.baseline_price, live.price);
   const sinceCheckedZ = zScore(sinceCheckedChangePct, sigma);
-  const materiality = classify(Math.abs(sinceCheckedZ));
+  const materiality = classify(Math.abs(sinceCheckedZ), sensitivity);
 
   const marketTodayPct = getMarketTodayPct(db);
   const idiosyncraticPct = sinceCheckedChangePct - marketTodayPct;

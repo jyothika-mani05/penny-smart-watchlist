@@ -1,10 +1,17 @@
-export type ViewKey = "digest" | "compare" | "manage" | "removed";
+import type { Icon } from "@phosphor-icons/react";
+import { Archive, ChartBar, Gear, Star, Tray } from "@phosphor-icons/react";
 
-const NAV_ITEMS: { key: ViewKey; label: string; icon: string }[] = [
-  { key: "digest", label: "Digest", icon: "📥" },
-  { key: "compare", label: "Compare", icon: "📊" },
-  { key: "manage", label: "Watchlist", icon: "⭐" },
-  { key: "removed", label: "Removed", icon: "🗂️" },
+export type ViewKey = "digest" | "compare" | "manage" | "removed" | "settings";
+
+const NAV_ITEMS: { key: ViewKey; label: string; icon: Icon }[] = [
+  { key: "digest", label: "Digest", icon: Tray },
+  { key: "compare", label: "Compare", icon: ChartBar },
+  { key: "manage", label: "Watchlist", icon: Star },
+  { key: "removed", label: "Removed", icon: Archive },
+];
+
+const FOOTER_ITEMS: { key: ViewKey; label: string; icon: Icon }[] = [
+  { key: "settings", label: "Settings", icon: Gear },
 ];
 
 export function Sidebar({
@@ -18,15 +25,37 @@ export function Sidebar({
 }) {
   return (
     <aside className={`sidebar ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Main">
         {NAV_ITEMS.map((item) => (
           <button
             key={item.key}
             className={`sidebar-nav-item ${view === item.key ? "active" : ""}`}
             onClick={() => onSelectView(item.key)}
             title={collapsed ? item.label : undefined}
+            aria-label={item.label}
+            aria-current={view === item.key ? "page" : undefined}
           >
-            <span className="nav-icon">{item.icon}</span>
+            <span className="nav-icon" aria-hidden="true">
+              <item.icon size={18} weight="regular" />
+            </span>
+            {!collapsed && item.label}
+          </button>
+        ))}
+      </nav>
+
+      <nav className="sidebar-nav sidebar-nav-footer" aria-label="Secondary">
+        {FOOTER_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            className={`sidebar-nav-item ${view === item.key ? "active" : ""}`}
+            onClick={() => onSelectView(item.key)}
+            title={collapsed ? item.label : undefined}
+            aria-label={item.label}
+            aria-current={view === item.key ? "page" : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              <item.icon size={18} weight="regular" />
+            </span>
             {!collapsed && item.label}
           </button>
         ))}

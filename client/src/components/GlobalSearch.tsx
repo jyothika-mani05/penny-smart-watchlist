@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { MagnifyingGlass, Plus } from "@phosphor-icons/react";
 import { api } from "../api";
 import type { SymbolInfo } from "../types";
 
@@ -66,18 +67,18 @@ export function GlobalSearch({
 
   return (
     <div className="global-search" ref={wrapRef}>
-      <svg className="global-search-icon" viewBox="0 0 20 20" fill="none">
-        <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.6" />
-        <line x1="14" y1="14" x2="18" y2="18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
+      <MagnifyingGlass className="global-search-icon" size={16} weight="regular" aria-hidden="true" />
+
       <input
         value={query}
         placeholder="Search stocks, e.g. RELIANCE"
+        aria-label="Search stocks"
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
         }}
         onFocus={() => query.trim() && setOpen(true)}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
       />
 
       {open && query.trim() && (
@@ -106,7 +107,13 @@ export function GlobalSearch({
                       setAdded((prev) => new Set(prev).add(s.symbol));
                     }}
                   >
-                    {added.has(s.symbol) ? "Added" : "+ Add"}
+                    {added.has(s.symbol) ? (
+                      "Added"
+                    ) : (
+                      <>
+                        <Plus size={12} weight="bold" aria-hidden="true" /> Add
+                      </>
+                    )}
                   </button>
                 )}
               </div>

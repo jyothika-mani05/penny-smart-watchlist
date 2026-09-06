@@ -1,34 +1,35 @@
 import { useRef } from "react";
+import { Buildings, ChartBar, ChartLineUp, ChatCircleDots, Compass, Tray } from "@phosphor-icons/react";
 import { RobotIcon } from "./RobotIcon";
 
 const FEATURES = [
   {
-    icon: "📥",
+    icon: Tray,
     title: "Personal baseline",
     body: "Every number is a delta from when you personally last looked — not just today vs. yesterday.",
   },
   {
-    icon: "σ",
+    icon: ChartLineUp,
     title: "Is this normal for this stock?",
     body: "Moves are flagged relative to that stock's own volatility, not a flat percentage rule for everyone.",
   },
   {
-    icon: "📊",
+    icon: ChartBar,
     title: "Compare, don't recommend",
     body: "Facts ranked by how much attention they deserve right now. Never a buy/sell call — that's regulated territory.",
   },
   {
-    icon: "🧭",
+    icon: Compass,
     title: "One sentence, not a wall of numbers",
     body: "A portfolio-level summary tells you if a dip is market-wide or actually about your stock.",
   },
   {
-    icon: "🏢",
+    icon: Buildings,
     title: "Verify before you track",
     body: "Real company profiles, ownership breakdowns, and official NSE filing links — before you add a stock.",
   },
   {
-    icon: "💬",
+    icon: ChatCircleDots,
     title: "Penny, the market assistant",
     body: "Ask about how markets work, anytime. Scoped strictly to concepts — never personalized advice.",
   },
@@ -69,8 +70,9 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
 
       <nav className="landing-nav">
         <div className="landing-brand">
-          <span className="brand-mark">◆</span>
+          <img src="/logo.png" alt="" className="brand-logo" />
           <span className="brand-name">Penny</span>
+          <span className="landing-brand-tagline">A Smart Watchlist</span>
         </div>
         <button className="glass-btn" onClick={onEnter}>
           Log in
@@ -143,7 +145,9 @@ export function Landing({ onEnter }: { onEnter: () => void }) {
         <div className="feature-grid">
           {FEATURES.map((f) => (
             <div key={f.title} className="glass-panel feature-card">
-              <span className="feature-icon">{f.icon}</span>
+              <span className="feature-icon" aria-hidden="true">
+                <f.icon size={22} weight="regular" />
+              </span>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
             </div>

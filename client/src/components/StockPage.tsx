@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft, ArrowUpRight } from "@phosphor-icons/react";
 import { api } from "../api";
 import type { CompanyProfile, HistoryResponse, Ownership } from "../types";
 import { PriceChart } from "./PriceChart";
@@ -82,7 +83,7 @@ export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => vo
   return (
     <div className="stock-page">
       <button className="back-link" onClick={onBack}>
-        ← Back to Digest
+        <ArrowLeft size={16} weight="bold" aria-hidden="true" /> Back to Digest
       </button>
 
       {error && <p className="error-text">{error}</p>}
@@ -293,7 +294,9 @@ export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => vo
                     rel="noopener noreferrer"
                     className="official-link-card"
                   >
-                    <span className="official-link-label">{link.label} ↗</span>
+                    <span className="official-link-label">
+                      {link.label} <ArrowUpRight size={14} weight="bold" aria-hidden="true" />
+                    </span>
                     <span className="official-link-desc">{link.description}</span>
                   </a>
                 ))}

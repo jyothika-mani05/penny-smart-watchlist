@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { classify, getSigma, pctChange, zScore } from "./stats.js";
+import { classify, getSigma, pctChange, zScore, type Sensitivity } from "./stats.js";
 import { getLivePrice, getMarketTodayPct } from "./digest.js";
 import { buildMoveExplanation } from "./explain.js";
 import { SYMBOL_MAP } from "./symbols.js";
@@ -48,7 +48,8 @@ export function buildHistory(
   db: DatabaseSync,
   symbol: string,
   requestedDays: number,
-  userId: string | null
+  userId: string | null,
+  sensitivity: Sensitivity = "balanced"
 ): HistoryResponse | null {
   const info = SYMBOL_MAP.get(symbol);
   const live = getLivePrice(db, symbol);
@@ -72,7 +73,7 @@ export function buildHistory(
       close: rows[i].close,
       changePct,
       z,
-      materiality: classify(Math.abs(z)),
+      materiality: classify(Math.abs(z), sensitivity),
     });
   }
 
@@ -86,7 +87,7 @@ export function buildHistory(
       close: live.price,
       changePct: todayChangePct,
       z: todayZ,
-      materiality: classify(Math.abs(todayZ)),
+      materiality: classify(Math.abs(todayZ), sensitivity),
     });
   }
 
@@ -105,7 +106,7 @@ export function buildHistory(
     : undefined;
   const sinceCheckedChangePct = baseline ? pctChange(baseline.baseline_price, live.price) : 0;
   const sinceCheckedZ = zScore(sinceCheckedChangePct, sigma);
-  const materiality = classify(Math.abs(sinceCheckedZ));
+  const materiality = classify(Math.abs(sinceCheckedZ), sensitivity);
 
   const marketTodayPct = getMarketTodayPct(db);
   const idiosyncraticPct = sinceCheckedChangePct - marketTodayPct;

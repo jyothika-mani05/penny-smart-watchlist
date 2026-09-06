@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CaretDown, Plus, X } from "@phosphor-icons/react";
 import type { Watchlist } from "../types";
 
 export function WatchlistSwitcher({
@@ -19,16 +20,24 @@ export function WatchlistSwitcher({
 
   return (
     <div className="watchlist-switcher">
-      <button className="watchlist-switcher-btn" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="watchlist-switcher-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
         <span className="watchlist-switcher-label">{active?.name ?? "No watchlist"}</span>
-        <span className="topbar-caret">▾</span>
+        <span className="topbar-caret" aria-hidden="true">
+          <CaretDown size={14} weight="bold" />
+        </span>
       </button>
 
       {open && (
-        <div className="watchlist-switcher-menu" onMouseLeave={() => setOpen(false)}>
+        <div className="watchlist-switcher-menu" role="menu" onMouseLeave={() => setOpen(false)}>
           {watchlists.map((w) => (
             <div key={w.id} className={`watchlist-switcher-item ${w.id === activeId ? "active" : ""}`}>
               <button
+                role="menuitem"
                 onClick={() => {
                   onSelect(w.id);
                   setOpen(false);
@@ -40,8 +49,9 @@ export function WatchlistSwitcher({
                 className="watchlist-switcher-remove"
                 onClick={() => onDeleteList(w.id)}
                 title="Delete watchlist"
+                aria-label={`Delete watchlist "${w.name}"`}
               >
-                ×
+                <X size={13} weight="bold" aria-hidden="true" />
               </button>
             </div>
           ))}
@@ -54,7 +64,7 @@ export function WatchlistSwitcher({
               setOpen(false);
             }}
           >
-            + New watchlist
+            <Plus size={14} weight="bold" aria-hidden="true" /> New watchlist
           </button>
         </div>
       )}

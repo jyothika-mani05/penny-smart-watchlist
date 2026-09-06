@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Plus } from "@phosphor-icons/react";
 import { api } from "../api";
 import type { CompareResponse, DigestResponse, User, Watchlist, WatchlistItem } from "../types";
 import { DigestView } from "./DigestView";
@@ -15,6 +16,7 @@ import { DigestSkeleton } from "./DigestSkeleton";
 import { StockPage } from "./StockPage";
 import { ChatWidget } from "./ChatWidget";
 import { RemovedView } from "./RemovedView";
+import { SettingsView } from "./SettingsView";
 
 const VIEW_META: Record<ViewKey, { title: string; subtitle: string }> = {
   digest: {
@@ -32,6 +34,10 @@ const VIEW_META: Record<ViewKey, { title: string; subtitle: string }> = {
   removed: {
     title: "Removed",
     subtitle: "Stocks you stopped tracking, and what happened to them since.",
+  },
+  settings: {
+    title: "Settings",
+    subtitle: "Your account, digest sensitivity, and where the data comes from.",
   },
 };
 
@@ -58,10 +64,14 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
   const [collapsed, setCollapsed] = useState(() => {
     try {
-      return localStorage.getItem(COLLAPSE_KEY) === "1";
+      const stored = localStorage.getItem(COLLAPSE_KEY);
+      if (stored != null) return stored === "1";
     } catch {
-      return false;
+      // ignore
     }
+    // No saved preference yet: default a narrow (mobile) viewport to a closed
+    // drawer instead of an open overlay covering the whole screen.
+    return typeof window !== "undefined" && window.innerWidth <= 768;
   });
 
   function toggleCollapsed() {
@@ -176,6 +186,11 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   function handleSelectView(v: ViewKey) {
     setSelectedSymbol(null);
     setView(v);
+    // On a mobile-width overlay drawer, picking a destination should close it —
+    // on desktop this width check is simply never true, so it's a no-op there.
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setCollapsed(true);
+    }
   }
 
   const meta = VIEW_META[view];
@@ -192,7 +207,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   const visibleItems = hiddenSymbol ? items.filter((i) => i.symbol !== hiddenSymbol) : items;
 
   return (
-    <div className="app-frame">
+    <div className="app-frame app-frame-entering">
       <Topbar
         collapsed={collapsed}
         onToggleCollapse={toggleCollapsed}
@@ -206,6 +221,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
 
       <div className="shell">
         <Sidebar collapsed={collapsed} view={view} onSelectView={handleSelectView} />
+        {!collapsed && <div className="sidebar-backdrop" onClick={toggleCollapsed} />}
 
         <main className="main">
         {selectedSymbol ? (
@@ -220,7 +236,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
                 </div>
               )}
               {view === "digest" && <div />}
-              {view !== "removed" && (
+              {view !== "removed" && view !== "settings" && (
                 <div className="main-header-actions">
                   <WatchlistSwitcher
                     watchlists={watchlists}
@@ -231,7 +247,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
                   />
                   {activeId != null && (
                     <button className="btn-primary" onClick={() => setShowAdd(true)}>
-                      + Add stock
+                      <Plus size={15} weight="bold" aria-hidden="true" /> Add stock
                     </button>
                   )}
                 </div>
@@ -289,7 +305,9 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
 
             {view === "removed" && <RemovedView />}
 
-            {activeId == null && !showNewList && view !== "removed" && (
+            {view === "settings" && <SettingsView user={user} onSwitchUser={onSwitchUser} />}
+
+            {activeId == null && !showNewList && view !== "removed" && view !== "settings" && (
               <p className="empty-state">Create a watchlist to get started.</p>
             )}
           </>
@@ -323,6 +341,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
           visibleDigest &&
             visibleDigest.narrative.significantCount + visibleDigest.narrative.notableCount > 0
         )}
+        watchlistId={activeId}
       />
     </div>
   );

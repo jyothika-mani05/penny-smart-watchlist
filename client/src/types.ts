@@ -157,6 +157,12 @@ export interface RemovedItem {
   changePct: number | null;
 }
 
+export type Sensitivity = "sensitive" | "balanced" | "relaxed";
+
+export interface UserSettings {
+  sensitivity: Sensitivity;
+}
+
 export const INTENT_LABELS: Record<string, string> = {
   own: "Own it",
   watching_for_dip: "Watching for a dip",

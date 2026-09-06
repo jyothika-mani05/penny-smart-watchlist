@@ -4,6 +4,7 @@ import { UNIVERSE } from "../lib/symbols.js";
 import { buildHistory } from "../lib/history.js";
 import { getCompanyProfile } from "../lib/profile.js";
 import { optionalAuth } from "../lib/auth.js";
+import { getUserSensitivity } from "../lib/stats.js";
 
 interface LiveRow {
   symbol: string;
@@ -30,7 +31,8 @@ export function marketRouter(db: DatabaseSync): Router {
 
   router.get("/history/:symbol", (req, res) => {
     const days = Math.max(1, Number(req.query.days) || 30);
-    const result = buildHistory(db, req.params.symbol, days, req.userId ?? null);
+    const sensitivity = req.userId ? getUserSensitivity(db, req.userId) : "balanced";
+    const result = buildHistory(db, req.params.symbol, days, req.userId ?? null, sensitivity);
     if (!result) return res.status(404).json({ error: "not found" });
     res.json(result);
   });

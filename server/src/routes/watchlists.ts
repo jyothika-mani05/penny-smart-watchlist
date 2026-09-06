@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { buildItemInsight, buildPortfolioNarrative } from "../lib/digest.js";
 import { SYMBOL_MAP } from "../lib/symbols.js";
 import { requireAuth } from "../lib/auth.js";
+import { getUserSensitivity } from "../lib/stats.js";
 
 interface WatchlistRow {
   id: number;
@@ -205,8 +206,9 @@ export function watchlistsRouter(db: DatabaseSync): Router {
       .prepare(`SELECT * FROM watchlist_items WHERE watchlist_id = ?`)
       .all(watchlistId) as unknown as ItemRow[];
 
+    const sensitivity = getUserSensitivity(db, req.userId!);
     const insights = items
-      .map((item) => buildItemInsight(db, item, req.userId!))
+      .map((item) => buildItemInsight(db, item, req.userId!, sensitivity))
       .filter((x): x is NonNullable<typeof x> => x !== null)
       // Most noteworthy first — the whole point of the feature.
       .sort((a, b) => Math.abs(b.sinceCheckedZ) - Math.abs(a.sinceCheckedZ));
@@ -227,8 +229,9 @@ export function watchlistsRouter(db: DatabaseSync): Router {
       .prepare(`SELECT * FROM watchlist_items WHERE watchlist_id = ?`)
       .all(watchlistId) as unknown as ItemRow[];
 
+    const sensitivity = getUserSensitivity(db, req.userId!);
     const insights = items
-      .map((item) => buildItemInsight(db, item, req.userId!))
+      .map((item) => buildItemInsight(db, item, req.userId!, sensitivity))
       .filter((x): x is NonNullable<typeof x> => x !== null)
       .map((i) => ({
         symbol: i.symbol,

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
 import type { User } from "../types";
-import { RobotIcon } from "./RobotIcon";
 
 export function LoginGate({ onLogin }: { onLogin: (user: User) => void }) {
   const [name, setName] = useState("");
@@ -26,7 +25,7 @@ export function LoginGate({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <div className="login-gate">
       <div className="login-card">
-        <RobotIcon state="awake" size={56} badge />
+        <img src="/logo.png" alt="Penny" className="login-logo" />
         <h1>Penny</h1>
         <p className="login-subtitle">A smart watchlist</p>
         <p className="tagline">
@@ -48,14 +47,6 @@ export function LoginGate({ onLogin }: { onLogin: (user: User) => void }) {
         <button className="btn-primary" onClick={submit} disabled={busy || !name.trim()}>
           {busy ? "Signing in..." : "Continue"}
         </button>
-
-        <p className="login-hint">
-          Try <strong>demo</strong> for a pre-populated example watchlist.
-        </p>
-        <p className="login-note">
-          Lightweight identity only — no password, no email. It exists so "since you last
-          checked" can be personal to you instead of shared by everyone using this app.
-        </p>
       </div>
     </div>
   );
