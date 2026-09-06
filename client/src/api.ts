@@ -13,7 +13,10 @@ import type {
   WatchlistItem,
 } from "./types";
 
-const BASE = "/api";
+// In dev, Vite proxies "/api" straight to the local server (see vite.config.ts).
+// In production the frontend and backend are typically two separate deployed
+// hosts, so VITE_API_BASE points at the backend's real URL instead.
+const BASE = import.meta.env.VITE_API_BASE ?? "/api";
 const STORAGE_KEY = "smart-watchlist-user";
 
 export function getStoredUser(): User | null {

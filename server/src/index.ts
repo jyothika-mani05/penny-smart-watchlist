@@ -14,6 +14,7 @@ import { usersRouter } from "./routes/users.js";
 import { removedRouter } from "./routes/removed.js";
 import { startSimulator } from "./lib/simulator.js";
 import { refreshMarketData } from "./lib/refresh.js";
+import { runSeed } from "./db/seed.js";
 
 const REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000; // catches up across weekends/holidays without needing exact market-close timing
 
@@ -21,11 +22,15 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
 const db = openDb();
 
-const hasData = db.prepare(`SELECT 1 FROM live_prices LIMIT 1`).get();
+let hasData = db.prepare(`SELECT 1 FROM live_prices LIMIT 1`).get();
+
+// A fresh database (first boot, or a host with a non-persistent disk resetting
+// between deploys) gets seeded automatically rather than requiring a manual
+// `npm run seed` step on every deploy.
 if (!hasData) {
-  console.warn(
-    "No price data found. Run `npm run seed` first to fetch historical prices and seed the demo watchlist."
-  );
+  console.log("No price data found — running initial seed (fetches real historical prices)...");
+  await runSeed(db).catch((err) => console.error("Initial seed failed:", err));
+  hasData = db.prepare(`SELECT 1 FROM live_prices LIMIT 1`).get();
 }
 
 const app = express();

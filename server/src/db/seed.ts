@@ -1,4 +1,5 @@
 import YahooFinance from "yahoo-finance2";
+import type { DatabaseSync } from "node:sqlite";
 import { openDb } from "./schema.js";
 import { UNIVERSE, MARKET_INDEX } from "../lib/symbols.js";
 
@@ -25,9 +26,12 @@ async function fetchHistory(symbol: string) {
     .map((q) => ({ date: q.date.toISOString().slice(0, 10), close: q.close as number }));
 }
 
-async function main() {
-  const db = openDb();
-
+/** Fetches real historical prices for the full symbol universe and seeds a demo
+ *  account with an example watchlist. Safe to call on any DatabaseSync — used
+ *  both by the standalone `npm run seed` CLI and automatically at server boot
+ *  when a fresh (e.g. freshly deployed, disk-reset) database has no price data
+ *  yet, so a production deploy doesn't need a manual seed step. */
+export async function runSeed(db: DatabaseSync): Promise<void> {
   const insertHistory = db.prepare(
     `INSERT OR REPLACE INTO price_history (symbol, date, close) VALUES (?, ?, ?)`
   );
@@ -115,10 +119,14 @@ async function main() {
     console.log(`Seeded demo user with watchlist #${lastInsertRowid}, ${starter.length} items`);
   }
 
-  console.log("Seed complete. Log in with the name \"demo\" to see the pre-populated example.");
+  console.log('Seed complete. Log in with the name "demo" to see the pre-populated example.');
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Standalone CLI usage (`npm run seed`) — server boot calls `runSeed` directly instead.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const db = openDb();
+  runSeed(db).catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
