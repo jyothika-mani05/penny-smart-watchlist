@@ -23,7 +23,7 @@ const VIEW_META: Record<ViewKey, { title: string; subtitle: string }> = {
   },
   compare: {
     title: "Compare",
-    subtitle: "Facts ranked by how much attention each stock deserves right now.",
+    subtitle: "How each stock deviated from its own normal behaviour — facts, never a recommendation.",
   },
   manage: {
     title: "Watchlist",
@@ -173,6 +173,11 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
     setView("digest");
   }
 
+  function handleSelectView(v: ViewKey) {
+    setSelectedSymbol(null);
+    setView(v);
+  }
+
   const meta = VIEW_META[view];
   const hiddenSymbol = pendingRemoval?.symbol;
 
@@ -200,7 +205,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
       />
 
       <div className="shell">
-        <Sidebar collapsed={collapsed} view={view} onSelectView={setView} />
+        <Sidebar collapsed={collapsed} view={view} onSelectView={handleSelectView} />
 
         <main className="main">
         {selectedSymbol ? (
@@ -275,6 +280,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
             {activeId != null && view === "manage" && (
               <ManageView
                 items={visibleItems}
+                insights={digest?.items ?? []}
                 onIntentChange={handleIntentChange}
                 onRemove={requestRemove}
                 onOpen={setSelectedSymbol}

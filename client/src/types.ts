@@ -65,6 +65,7 @@ export interface CompareItem {
   sinceCheckedZ: number;
   idiosyncraticPct: number;
   volumeRatio: number;
+  materiality: Materiality;
   attentionScore: number;
 }
 
