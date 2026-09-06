@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CaretDown, List } from "@phosphor-icons/react";
+import { CaretDown, Compass, List } from "@phosphor-icons/react";
 import type { User } from "../types";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -12,6 +12,7 @@ export function Topbar({
   onSelectSymbol,
   onQuickAdd,
   canAdd,
+  onStartTour,
 }: {
   collapsed: boolean;
   onToggleCollapse: () => void;
@@ -21,6 +22,7 @@ export function Topbar({
   onSelectSymbol: (symbol: string) => void;
   onQuickAdd: (symbol: string) => void;
   canAdd: boolean;
+  onStartTour: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -44,6 +46,10 @@ export function Topbar({
       <GlobalSearch onSelectSymbol={onSelectSymbol} onQuickAdd={onQuickAdd} canAdd={canAdd} />
 
       <div className="topbar-right">
+        <button className="topbar-tour-btn" onClick={onStartTour}>
+          <Compass size={15} weight="regular" aria-hidden="true" />
+          <span className="topbar-tour-label">Take a tour</span>
+        </button>
         <button
           className="topbar-user"
           onClick={() => setMenuOpen((o) => !o)}

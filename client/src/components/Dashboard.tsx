@@ -17,6 +17,7 @@ import { StockPage } from "./StockPage";
 import { ChatWidget } from "./ChatWidget";
 import { RemovedView } from "./RemovedView";
 import { SettingsView } from "./SettingsView";
+import { TourGuide } from "./TourGuide";
 
 const VIEW_META: Record<ViewKey, { title: string; subtitle: string }> = {
   digest: {
@@ -62,6 +63,7 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<PendingRemoval | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
+  const [tourActive, setTourActive] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
       const stored = localStorage.getItem(COLLAPSE_KEY);
@@ -217,6 +219,10 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
         onSelectSymbol={setSelectedSymbol}
         onQuickAdd={(symbol) => handleAdd(symbol, "watching")}
         canAdd={activeId != null}
+        onStartTour={() => {
+          setSelectedSymbol(null);
+          setTourActive(true);
+        }}
       />
 
       <div className="shell">
@@ -343,6 +349,14 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
         )}
         watchlistId={activeId}
       />
+
+      {tourActive && (
+        <TourGuide
+          currentView={view}
+          onNavigate={handleSelectView}
+          onClose={() => setTourActive(false)}
+        />
+      )}
     </div>
   );
 }

@@ -73,9 +73,29 @@ export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => vo
     api.getProfile(symbol).then(setProfile).catch((err) => setError((err as Error).message));
   }, [symbol]);
 
+  // Only reset to the loading state when we've actually navigated to a
+  // different stock. Switching timeframes on the *same* stock keeps the
+  // previous chart on screen until the new one arrives instead of collapsing
+  // the page to a bare "Loading..." and back — that height flicker was
+  // snapping the scroll position back to the top on every 1W/1M/3M click.
   useEffect(() => {
     setData(null);
-    api.getHistory(symbol, days).then(setData).catch((err) => setError((err as Error).message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol]);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getHistory(symbol, days)
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((err) => {
+        if (!cancelled) setError((err as Error).message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [symbol, days]);
 
   const marketWide = data ? Math.abs(data.idiosyncraticPct) < Math.abs(data.sinceCheckedChangePct) * 0.4 : false;
