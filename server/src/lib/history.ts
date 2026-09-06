@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { classify, getSigma, pctChange, zScore } from "./stats.js";
-import { getLivePrice } from "./digest.js";
+import { getLivePrice, getMarketTodayPct } from "./digest.js";
+import { buildMoveExplanation } from "./explain.js";
 import { SYMBOL_MAP } from "./symbols.js";
 
 export interface DayLogEntry {
@@ -30,10 +31,18 @@ export interface HistoryResponse {
   sinceCheckedChangePct: number;
   sinceCheckedZ: number;
   seenAt: string | null;
+  materiality: "quiet" | "notable" | "significant";
+  reason: string;
+  idiosyncraticPct: number;
+  marketTodayPct: number;
   log: DayLogEntry[];
 }
 
-const MIN_DAYS = 30;
+// Only a safety floor against a degenerate 0/1-point chart — NOT a padded
+// minimum window. A caller asking for 7 days should see 7 days, not 30;
+// sigma itself is unaffected since getSigma always uses its own trailing
+// 30-return window regardless of what's requested here.
+const MIN_DAYS = 2;
 
 export function buildHistory(
   db: DatabaseSync,
@@ -96,6 +105,20 @@ export function buildHistory(
     : undefined;
   const sinceCheckedChangePct = baseline ? pctChange(baseline.baseline_price, live.price) : 0;
   const sinceCheckedZ = zScore(sinceCheckedChangePct, sigma);
+  const materiality = classify(Math.abs(sinceCheckedZ));
+
+  const marketTodayPct = getMarketTodayPct(db);
+  const idiosyncraticPct = sinceCheckedChangePct - marketTodayPct;
+  const volumeRatio = live.avg_volume > 0 ? live.volume / live.avg_volume : 1;
+  const reason = baseline
+    ? buildMoveExplanation({
+        sinceCheckedZ,
+        sinceCheckedChangePct,
+        idiosyncraticPct,
+        volumeRatio,
+        materiality,
+      })
+    : "Log in to see how this compares to when you last checked.";
 
   return {
     symbol,
@@ -108,7 +131,7 @@ export function buildHistory(
     dayLow: live.day_low,
     volume: live.volume,
     avgVolume: live.avg_volume,
-    volumeRatio: live.avg_volume > 0 ? live.volume / live.avg_volume : 1,
+    volumeRatio,
     sigma,
     periodHigh,
     periodLow,
@@ -116,6 +139,10 @@ export function buildHistory(
     sinceCheckedChangePct,
     sinceCheckedZ,
     seenAt: baseline?.seen_at ?? null,
+    materiality,
+    reason,
+    idiosyncraticPct,
+    marketTodayPct,
     log: windowLog,
   };
 }

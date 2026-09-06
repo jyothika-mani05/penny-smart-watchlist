@@ -1,6 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { classify, getSigma, pctChange, zScore, type Materiality } from "./stats.js";
 import { MARKET_INDEX, peersOf, SYMBOL_MAP } from "./symbols.js";
+import { buildMoveExplanation } from "./explain.js";
 
 export interface LivePriceRow {
   symbol: string;
@@ -11,6 +12,11 @@ export interface LivePriceRow {
   day_low: number;
   volume: number;
   avg_volume: number;
+}
+
+export interface SparkPoint {
+  date: string;
+  close: number;
 }
 
 export interface ItemInsight {
@@ -26,6 +32,22 @@ export interface ItemInsight {
   volumeRatio: number;
   reason: string;
   seenAt: string;
+  sparkline: SparkPoint[];
+}
+
+const SPARKLINE_DAYS = 14;
+
+/** A short recent-closes tail for card sparklines — deliberately not the full
+ *  30-day history used on the stock detail page, just enough to show shape. */
+function getSparkline(db: DatabaseSync, symbol: string, live: LivePriceRow): SparkPoint[] {
+  const rows = db
+    .prepare(
+      `SELECT date, close FROM price_history WHERE symbol = ? ORDER BY date DESC LIMIT ?`
+    )
+    .all(symbol, SPARKLINE_DAYS) as unknown as SparkPoint[];
+  const chrono = rows.reverse();
+  chrono.push({ date: "live", close: live.price });
+  return chrono;
 }
 
 export function getLivePrice(db: DatabaseSync, symbol: string): LivePriceRow | undefined {
@@ -37,7 +59,7 @@ export function getLivePrice(db: DatabaseSync, symbol: string): LivePriceRow | u
 /** Market's own move since a given baseline timestamp isn't tracked per-baseline for
  *  the index, so we approximate "today's market move" via prev_close -> live price,
  *  which is good enough to separate market-wide moves from stock-specific ones. */
-function getMarketTodayPct(db: DatabaseSync): number {
+export function getMarketTodayPct(db: DatabaseSync): number {
   const idx = getLivePrice(db, MARKET_INDEX.symbol);
   if (!idx) return 0;
   return pctChange(idx.prev_close, idx.price);
@@ -52,21 +74,8 @@ function buildReason(opts: {
   volumeRatio: number;
   materiality: Materiality;
 }): string {
-  const { intent, sinceCheckedZ, sinceCheckedChangePct, idiosyncraticPct, volumeRatio, materiality } =
-    opts;
-  const direction = sinceCheckedChangePct >= 0 ? "up" : "down";
-  const absPct = Math.abs(sinceCheckedChangePct).toFixed(1);
-  const absZ = Math.abs(sinceCheckedZ).toFixed(1);
-
-  if (materiality === "quiet") {
-    return `Little changed since you last checked (${direction} ${absPct}%, within its normal range).`;
-  }
-
-  const marketWide = Math.abs(idiosyncraticPct) < Math.abs(sinceCheckedChangePct) * 0.4;
-  const volumeNote = volumeRatio >= 1.8 ? ` on ${volumeRatio.toFixed(1)}x normal volume` : "";
-  const marketNote = marketWide
-    ? " — broadly in line with the market, not stock-specific."
-    : " — more than the market move alone explains.";
+  const { intent, sinceCheckedChangePct, materiality } = opts;
+  const core = buildMoveExplanation(opts);
 
   const intentNote =
     intent === "watching_for_dip" && sinceCheckedChangePct < 0
@@ -75,7 +84,7 @@ function buildReason(opts: {
       ? " Worth a look since you hold this."
       : "";
 
-  return `${direction === "up" ? "Up" : "Down"} ${absPct}% (${absZ}σ, unusual for this stock)${volumeNote}${marketNote}${intentNote}`;
+  return `${core}${intentNote}`;
 }
 
 export function buildItemInsight(
@@ -124,6 +133,7 @@ export function buildItemInsight(
     volumeRatio,
     reason,
     seenAt: baseline.seen_at,
+    sparkline: getSparkline(db, item.symbol, live),
   };
 }
 

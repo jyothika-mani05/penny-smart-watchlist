@@ -5,7 +5,7 @@ import { RobotIcon, type RobotState } from "./RobotIcon";
 
 const IDLE_MS = 30_000;
 
-export function ChatWidget() {
+export function ChatWidget({ hasAlert = false }: { hasAlert?: boolean }) {
   const [open, setOpen] = useState(false);
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [history, setHistory] = useState<ChatTurn[]>([]);
@@ -14,9 +14,17 @@ export function ChatWidget() {
   const [idleTick, setIdleTick] = useState(0);
   const lastActivity = useRef(Date.now());
   const scrollRef = useRef<HTMLDivElement>(null);
+  // A brief happy wave the moment the app loads — mounts once per login/session,
+  // since ChatWidget itself only mounts when the Dashboard does.
+  const [greeting, setGreeting] = useState(true);
 
   useEffect(() => {
     api.chatStatus().then((s) => setConfigured(s.configured)).catch(() => setConfigured(false));
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setGreeting(false), 3200);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -34,6 +42,18 @@ export function ChatWidget() {
 
   const isIdle = idleTick >= 0 && Date.now() - lastActivity.current >= IDLE_MS;
   const botState: RobotState = busy ? "thinking" : isIdle ? "sleeping" : "awake";
+  // The floating button doubles as an ambient signal: if something in the
+  // digest is flagged and the panel's closed, Penny shows it before you even
+  // open chat — she's not just a Q&A widget, she reflects your watchlist.
+  const fabState: RobotState = greeting
+    ? "happy"
+    : busy
+    ? "thinking"
+    : !open && hasAlert
+    ? "alert"
+    : isIdle
+    ? "sleeping"
+    : "awake";
 
   async function send() {
     const text = input.trim();
@@ -140,15 +160,17 @@ export function ChatWidget() {
         </div>
       )}
 
+      {greeting && !open && <div className="chat-greeting-bubble">Hi, I'm Penny! 👋</div>}
+
       <button
-        className={`chat-fab ${botState === "sleeping" ? "chat-fab-sleeping" : ""}`}
+        className={`chat-fab ${fabState === "sleeping" ? "chat-fab-sleeping" : ""}`}
         onClick={() => {
           poke();
           setOpen((o) => !o);
         }}
-        title="Penny — stock market help"
+        title={hasAlert && !open ? "Penny — something in your watchlist needs a look" : "Penny — stock market help"}
       >
-        {open ? <span className="chat-fab-close">×</span> : <RobotIcon state={botState} size={64} />}
+        {open ? <span className="chat-fab-close">×</span> : <RobotIcon state={fabState} size={64} />}
       </button>
     </div>
   );

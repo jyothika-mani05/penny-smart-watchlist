@@ -21,6 +21,11 @@ export interface WatchlistItem {
 
 export type Materiality = "quiet" | "notable" | "significant";
 
+export interface SparkPoint {
+  date: string;
+  close: number;
+}
+
 export interface ItemInsight {
   symbol: string;
   name: string;
@@ -34,6 +39,7 @@ export interface ItemInsight {
   volumeRatio: number;
   reason: string;
   seenAt: string;
+  sparkline: SparkPoint[];
 }
 
 export interface PortfolioNarrative {
@@ -100,6 +106,10 @@ export interface HistoryResponse {
   sinceCheckedChangePct: number;
   sinceCheckedZ: number;
   seenAt: string | null;
+  materiality: Materiality;
+  reason: string;
+  idiosyncraticPct: number;
+  marketTodayPct: number;
   log: DayLogEntry[];
 }
 

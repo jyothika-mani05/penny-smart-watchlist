@@ -1,4 +1,6 @@
-export type RobotState = "awake" | "thinking" | "sleeping" | "concerned" | "happy";
+import { usePennyGaze } from "../PennyGaze";
+
+export type RobotState = "awake" | "thinking" | "sleeping" | "concerned" | "happy" | "alert";
 
 /** Penny's icon is deliberately white line-art with no fill of its own — that
  *  only stays visible sitting on the dark chat panel/FAB. Every other context
@@ -13,6 +15,11 @@ export function RobotIcon({
   size?: number;
   badge?: boolean;
 }) {
+  const gaze = usePennyGaze();
+  const tracksGaze = state === "awake" || state === "thinking" || state === "concerned" || state === "alert";
+  const gx = tracksGaze ? gaze.dx : 0;
+  const gy = tracksGaze ? gaze.dy : 0;
+
   const svg = (
     <svg
       width={size}
@@ -49,8 +56,8 @@ export function RobotIcon({
         </>
       ) : (
         <>
-          <circle cx="39" cy="51" r="6" className="robot-eye" style={{ animationDelay: "0s" }} />
-          <circle cx="61" cy="51" r="6" className="robot-eye" style={{ animationDelay: "0.08s" }} />
+          <circle cx={39 + gx} cy={51 + gy} r="6" className="robot-eye" style={{ animationDelay: "0s" }} />
+          <circle cx={61 + gx} cy={51 + gy} r="6" className="robot-eye" style={{ animationDelay: "0.08s" }} />
         </>
       )}
 
@@ -63,7 +70,7 @@ export function RobotIcon({
         </g>
       ) : state === "sleeping" ? (
         <line x1="44" y1="68" x2="56" y2="68" className="robot-eye-line" />
-      ) : state === "concerned" ? (
+      ) : state === "concerned" || state === "alert" ? (
         <circle cx="50" cy="66" r="4.5" className="robot-mouth-o" />
       ) : state === "happy" ? (
         <path d="M35 61 q15 17 30 0" className="robot-mouth" />
@@ -85,6 +92,9 @@ export function RobotIcon({
           </text>
         </g>
       )}
+
+      {/* notification dot while alert */}
+      {state === "alert" && <circle cx="85" cy="16" r="8" className="robot-alert-dot" />}
 
       {/* sparkles while happy */}
       {state === "happy" && (

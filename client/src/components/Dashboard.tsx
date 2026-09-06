@@ -8,7 +8,10 @@ import { AddStockDialog } from "./AddStockDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { UndoToast } from "./UndoToast";
 import { Sidebar, type ViewKey } from "./Sidebar";
+import { Topbar } from "./Topbar";
+import { WatchlistSwitcher } from "./WatchlistSwitcher";
 import { StatTiles } from "./StatTiles";
+import { DigestSkeleton } from "./DigestSkeleton";
 import { StockPage } from "./StockPage";
 import { ChatWidget } from "./ChatWidget";
 import { RemovedView } from "./RemovedView";
@@ -23,7 +26,7 @@ const VIEW_META: Record<ViewKey, { title: string; subtitle: string }> = {
     subtitle: "Facts ranked by how much attention each stock deserves right now.",
   },
   manage: {
-    title: "Manage",
+    title: "Watchlist",
     subtitle: "Add, remove, and tag why you're tracking each stock.",
   },
   removed: {
@@ -36,6 +39,8 @@ interface PendingRemoval {
   symbol: string;
   name: string;
 }
+
+const COLLAPSE_KEY = "smart-watchlist-sidebar-collapsed";
 
 export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: () => void }) {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
@@ -51,6 +56,25 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   const [error, setError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<PendingRemoval | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<PendingRemoval | null>(null);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     api
@@ -74,8 +98,6 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
     const timer = setInterval(refresh, 5000);
     return () => clearInterval(timer);
   }, [refresh]);
-
-  const activeWatchlist = watchlists.find((w) => w.id === activeId) ?? null;
 
   async function handleCreateList() {
     const name = newListName.trim();
@@ -146,6 +168,11 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
     refresh();
   }
 
+  function handleHome() {
+    setSelectedSymbol(null);
+    setView("digest");
+  }
+
   const meta = VIEW_META[view];
   const hiddenSymbol = pendingRemoval?.symbol;
 
@@ -160,36 +187,49 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
   const visibleItems = hiddenSymbol ? items.filter((i) => i.symbol !== hiddenSymbol) : items;
 
   return (
-    <div className="shell">
-      <Sidebar
-        watchlists={watchlists}
-        activeId={activeId}
-        onSelectWatchlist={setActiveId}
-        view={view}
-        onSelectView={setView}
-        onNewList={() => setShowNewList(true)}
-        onDeleteList={handleDeleteList}
+    <div className="app-frame">
+      <Topbar
+        collapsed={collapsed}
+        onToggleCollapse={toggleCollapsed}
+        onHome={handleHome}
         user={user}
         onSwitchUser={onSwitchUser}
+        onSelectSymbol={setSelectedSymbol}
+        onQuickAdd={(symbol) => handleAdd(symbol, "watching")}
+        canAdd={activeId != null}
       />
 
-      <main className="main">
+      <div className="shell">
+        <Sidebar collapsed={collapsed} view={view} onSelectView={setView} />
+
+        <main className="main">
         {selectedSymbol ? (
           <StockPage symbol={selectedSymbol} onBack={() => setSelectedSymbol(null)} />
         ) : (
           <>
             <header className="main-header">
-              <div>
-                {view !== "removed" && (
-                  <p className="watchlist-crumb">{activeWatchlist?.name ?? "No watchlist selected"}</p>
-                )}
-                <h1>{meta.title}</h1>
-                <p className="tagline">{meta.subtitle}</p>
-              </div>
-              {activeId != null && view !== "removed" && (
-                <button className="btn-primary" onClick={() => setShowAdd(true)}>
-                  + Add stock
-                </button>
+              {view !== "digest" && (
+                <div>
+                  <h1>{meta.title}</h1>
+                  <p className="tagline">{meta.subtitle}</p>
+                </div>
+              )}
+              {view === "digest" && <div />}
+              {view !== "removed" && (
+                <div className="main-header-actions">
+                  <WatchlistSwitcher
+                    watchlists={watchlists}
+                    activeId={activeId}
+                    onSelect={setActiveId}
+                    onNewList={() => setShowNewList(true)}
+                    onDeleteList={handleDeleteList}
+                  />
+                  {activeId != null && (
+                    <button className="btn-primary" onClick={() => setShowAdd(true)}>
+                      + Add stock
+                    </button>
+                  )}
+                </div>
               )}
             </header>
 
@@ -212,6 +252,8 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
                 </button>
               </div>
             )}
+
+            {activeId != null && !visibleDigest && view === "digest" && <DigestSkeleton />}
 
             {activeId != null && visibleDigest && view === "digest" && (
               <>
@@ -246,7 +288,8 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
             )}
           </>
         )}
-      </main>
+        </main>
+      </div>
 
       {showAdd && <AddStockDialog onAdd={handleAdd} onClose={() => setShowAdd(false)} />}
 
@@ -269,7 +312,12 @@ export function Dashboard({ user, onSwitchUser }: { user: User; onSwitchUser: ()
         />
       )}
 
-      <ChatWidget />
+      <ChatWidget
+        hasAlert={Boolean(
+          visibleDigest &&
+            visibleDigest.narrative.significantCount + visibleDigest.narrative.notableCount > 0
+        )}
+      />
     </div>
   );
 }

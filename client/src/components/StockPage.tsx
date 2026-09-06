@@ -3,6 +3,16 @@ import { api } from "../api";
 import type { CompanyProfile, HistoryResponse, Ownership } from "../types";
 import { PriceChart } from "./PriceChart";
 import { RobotIcon } from "./RobotIcon";
+import { InfoTooltip } from "./InfoTooltip";
+import { formatExactTime, formatRelativeTime } from "../utils/time";
+
+const TIMEFRAMES = [
+  { key: "1W", days: 7 },
+  { key: "1M", days: 30 },
+  { key: "3M", days: 90 },
+] as const;
+
+type TimeframeKey = (typeof TIMEFRAMES)[number]["key"];
 
 function OwnershipCard({ ownership }: { ownership: Ownership }) {
   const insiders = ownership.insidersPercentHeld ?? 0;
@@ -47,24 +57,32 @@ function OwnershipCard({ ownership }: { ownership: Ownership }) {
 }
 
 export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => void }) {
+  const [timeframe, setTimeframe] = useState<TimeframeKey>("1M");
   const [data, setData] = useState<HistoryResponse | null>(null);
   const [profile, setProfile] = useState<CompanyProfile | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [expandSummary, setExpandSummary] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const days = TIMEFRAMES.find((t) => t.key === timeframe)!.days;
+
   useEffect(() => {
-    setData(null);
     setProfile(null);
     setExpandSummary(false);
-    api.getHistory(symbol, 30).then(setData).catch((err) => setError((err as Error).message));
     api.getProfile(symbol).then(setProfile).catch((err) => setError((err as Error).message));
   }, [symbol]);
+
+  useEffect(() => {
+    setData(null);
+    api.getHistory(symbol, days).then(setData).catch((err) => setError((err as Error).message));
+  }, [symbol, days]);
+
+  const marketWide = data ? Math.abs(data.idiosyncraticPct) < Math.abs(data.sinceCheckedChangePct) * 0.4 : false;
 
   return (
     <div className="stock-page">
       <button className="back-link" onClick={onBack}>
-        ← Back
+        ← Back to Digest
       </button>
 
       {error && <p className="error-text">{error}</p>}
@@ -87,46 +105,19 @@ export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => vo
             {data.todayChangePct >= 0 && <RobotIcon state="happy" size={22} badge />}
           </div>
 
-          <div className="drawer-stat-grid stat-highlight-in">
-            <div>
-              <span className="stat-label">Day range</span>
-              <span className="stat-value-sm">
-                ₹{data.dayLow.toFixed(2)} – ₹{data.dayHigh.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="stat-label">30d range</span>
-              <span className="stat-value-sm">
-                ₹{data.periodLow.toFixed(2)} – ₹{data.periodHigh.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="stat-label">Volume vs normal</span>
-              <span className="stat-value-sm">{data.volumeRatio.toFixed(1)}x</span>
-            </div>
-            <div>
-              <span className="stat-label">Daily volatility (σ)</span>
-              <span className="stat-value-sm">{data.sigma.toFixed(2)}%</span>
-            </div>
-            <div>
-              <span className="stat-label">30d change</span>
-              <span className={`stat-value-sm ${data.periodChangePct >= 0 ? "delta-up" : "delta-down"}`}>
-                {data.periodChangePct >= 0 ? "+" : ""}
-                {data.periodChangePct.toFixed(2)}%
-              </span>
-            </div>
-            <div>
-              <span className="stat-label">Since you checked</span>
-              <span className={`stat-value-sm ${data.sinceCheckedChangePct >= 0 ? "delta-up" : "delta-down"}`}>
-                {data.sinceCheckedChangePct >= 0 ? "+" : ""}
-                {data.sinceCheckedChangePct.toFixed(2)}% ({Math.abs(data.sinceCheckedZ).toFixed(1)}σ)
-              </span>
-            </div>
-          </div>
-
           <section className="page-section">
             <div className="drawer-chart-header">
-              <h3>Last 30 sessions</h3>
+              <div className="timeframe-toggle">
+                {TIMEFRAMES.map((t) => (
+                  <button
+                    key={t.key}
+                    className={timeframe === t.key ? "active" : ""}
+                    onClick={() => setTimeframe(t.key)}
+                  >
+                    {t.key}
+                  </button>
+                ))}
+              </div>
               <button className="link-btn" onClick={() => setShowLog((s) => !s)}>
                 {showLog ? "Show chart" : "Show day-by-day log"}
               </button>
@@ -160,6 +151,80 @@ export function StockPage({ symbol, onBack }: { symbol: string; onBack: () => vo
             ) : (
               <PriceChart log={data.log} />
             )}
+          </section>
+
+          <section className="page-section">
+            <h3 className="why-flagged-heading">Why Penny flagged this</h3>
+
+            <div className="why-flagged-headline">
+              <span className={`why-flagged-sigma ${data.materiality}`}>
+                {Math.abs(data.sinceCheckedZ).toFixed(1)}σ
+              </span>
+              <span>above its normal movement since you last checked</span>
+              <InfoTooltip text="This stock moved this many standard deviations more than its typical daily move — a statistical measure of how unusual the size of the move is for this specific stock." />
+            </div>
+
+            <div className="why-flagged-grid">
+              <div>
+                <span className="stat-label">Volume</span>
+                <span className="stat-value-sm">{data.volumeRatio.toFixed(1)}× normal</span>
+              </div>
+              <div>
+                <span className="stat-label">Market (Nifty)</span>
+                <span className={`stat-value-sm ${data.marketTodayPct >= 0 ? "delta-up" : "delta-down"}`}>
+                  {data.marketTodayPct >= 0 ? "+" : ""}
+                  {data.marketTodayPct.toFixed(2)}%
+                </span>
+              </div>
+              <div>
+                <span className="stat-label">{data.symbol.replace(".NS", "")}</span>
+                <span className={`stat-value-sm ${data.sinceCheckedChangePct >= 0 ? "delta-up" : "delta-down"}`}>
+                  {data.sinceCheckedChangePct >= 0 ? "+" : ""}
+                  {data.sinceCheckedChangePct.toFixed(2)}%
+                </span>
+              </div>
+              <div>
+                <span className="stat-label">Last checked</span>
+                <span className="stat-value-sm" title={data.seenAt ? formatExactTime(data.seenAt) : undefined}>
+                  {data.seenAt ? formatRelativeTime(data.seenAt) : "—"}
+                </span>
+              </div>
+            </div>
+
+            <div className={`market-context-tag ${marketWide ? "market-wide" : "stock-specific"}`}>
+              {marketWide ? "Mostly market-wide" : "Stock-specific move"}
+            </div>
+
+            <div className="penny-explanation">
+              <RobotIcon state={data.materiality === "quiet" ? "awake" : "concerned"} size={26} badge />
+              <p>{data.reason}</p>
+            </div>
+
+            <div className="drawer-stat-grid">
+              <div>
+                <span className="stat-label">Day range</span>
+                <span className="stat-value-sm">
+                  ₹{data.dayLow.toFixed(2)} – ₹{data.dayHigh.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span className="stat-label">{timeframe} range</span>
+                <span className="stat-value-sm">
+                  ₹{data.periodLow.toFixed(2)} – ₹{data.periodHigh.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span className="stat-label">{timeframe} change</span>
+                <span className={`stat-value-sm ${data.periodChangePct >= 0 ? "delta-up" : "delta-down"}`}>
+                  {data.periodChangePct >= 0 ? "+" : ""}
+                  {data.periodChangePct.toFixed(2)}%
+                </span>
+              </div>
+              <div>
+                <span className="stat-label">Daily volatility (σ)</span>
+                <span className="stat-value-sm">{data.sigma.toFixed(2)}%</span>
+              </div>
+            </div>
           </section>
 
           <section className="page-section">

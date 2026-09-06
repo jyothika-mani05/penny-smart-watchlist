@@ -238,6 +238,7 @@ export function watchlistsRouter(db: DatabaseSync): Router {
         sinceCheckedZ: i.sinceCheckedZ,
         idiosyncraticPct: i.idiosyncraticPct,
         volumeRatio: i.volumeRatio,
+        materiality: i.materiality,
         attentionScore: Math.abs(i.sinceCheckedZ) * 0.6 + Math.min(i.volumeRatio, 5) * 0.2 + Math.abs(i.idiosyncraticPct) * 0.2,
       }))
       .sort((a, b) => b.attentionScore - a.attentionScore);
